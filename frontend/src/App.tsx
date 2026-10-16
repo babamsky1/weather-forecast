@@ -166,11 +166,13 @@ function WeatherIcon({ condition }: { condition: string }) {
 
   if (
     normalizedCondition.includes("cloud") ||
-    normalizedCondition.includes("overcast")
+    normalizedCondition.includes("overcast") ||
+    normalizedCondition.includes("mainly clear")
   ) {
     return <CloudSun size={76} strokeWidth={1.4} />;
   }
 
+  // "Clear sky" is the only genuinely sunny condition.
   return <Sun size={76} strokeWidth={1.4} />;
 }
 
