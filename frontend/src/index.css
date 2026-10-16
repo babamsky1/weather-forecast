@@ -1353,11 +1353,12 @@ a {
     font-size: 21px;
   }
 
-  /* Wrap the hero footer when necessary. */
+  /* Keep hero footer items side by side on phones (horizontal scroll if needed). */
   .hero-footer {
-    flex-wrap: wrap;
-    gap: 16px 24px;
-    padding: 14px 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 12px 16px;
+    padding: 12px 0;
   }
 
   /* Put the refresh action on its own row if needed. */
