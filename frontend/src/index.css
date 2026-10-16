@@ -895,7 +895,6 @@ a {
   justify-content: center;
   gap: 8px;
   min-height: 37px;
-  margin-left: auto;
   padding: 8px 13px;
   color: #ffffff;
   background: rgba(255, 255, 255, 0.13);
@@ -916,10 +915,12 @@ a {
   animation: spin 900ms linear infinite;
 }
 
-/* Group the share and refresh actions side by side. */
-.hero-footer-actions {
+/* Group the share and refresh actions side by side, pinned to the far right end. */
+.hero-footer .hero-footer-actions {
   display: flex;
   gap: 8px;
+  flex-direction: row;
+  margin-left: auto;
 }
 
 /* Style the share action. */
