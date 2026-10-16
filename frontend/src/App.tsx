@@ -13,14 +13,18 @@ import {
   RefreshCw,
   Satellite,
   Search,
+  Share,
   Snowflake,
   Sun,
   Thermometer,
   TriangleAlert,
   Wind,
+  Gauge,
+  Eye,
 } from "lucide-react";
 import {
   useState,
+  useEffect,
   type FormEvent,
   type KeyboardEvent,
 } from "react";
@@ -39,6 +43,9 @@ const UNITS_STORAGE_KEY = "skywatch:units";
 
 // Remember the cities the user recently searched for.
 const RECENT_CITIES_STORAGE_KEY = "skywatch:recent-cities";
+
+// Remember whether the user has visited before (for first-visit geolocation prompt).
+const HAS_VISITED_STORAGE_KEY = "skywatch:has-visited";
 
 // Define the available temperature units.
 type TemperatureUnit = "C" | "F";
@@ -109,6 +116,46 @@ function formatTemperature(
 // Build the secondary line for a city suggestion.
 function buildSuggestionRegion(suggestion: CitySuggestion): string {
   return [suggestion.admin1, suggestion.country].filter(Boolean).join(", ");
+}
+
+// Convert wind degrees to a 16-point compass direction.
+function compassDirection(degrees: number | null): string {
+  if (degrees === null || !Number.isFinite(degrees)) return "—";
+
+  const directions = [
+    "N",
+    "NNE",
+    "NE",
+    "ENE",
+    "E",
+    "ESE",
+    "SE",
+    "SSE",
+    "S",
+    "SSW",
+    "SW",
+    "WSW",
+    "W",
+    "WNW",
+    "NW",
+    "NNW",
+  ];
+
+  const index = Math.round((((degrees % 360) + 360) % 360) / 22.5) % 16;
+  return directions[index];
+}
+
+// Format a sunrise/sunset ISO time as a short local time.
+function formatSunTime(isoTime: string | null): string {
+  if (!isoTime) return "—";
+
+  const date = new Date(isoTime);
+  if (Number.isNaN(date.getTime())) return isoTime;
+
+  return date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 // Decide the hero color theme from the current weather.
@@ -241,6 +288,38 @@ function formatForecastDay(dateString: string, index: number): string {
   return date.toLocaleDateString(undefined, { weekday: "short" });
 }
 
+// Show a small rotating arrow with the compass direction for wind.
+function WindDirection({ degrees }: { degrees: number | null }) {
+  const direction = compassDirection(degrees);
+  const hasValue = degrees !== null && Number.isFinite(degrees);
+
+  return (
+    <span className="wind-direction" title={hasValue ? `${direction} (${Math.round(degrees)}°)` : "No data"}>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ transform: hasValue ? `rotate(${degrees}deg)` : "none" }}
+      >
+        <line x1="12" y1="2" x2="12" y2="8" />
+        <line x1="12" y1="16" x2="12" y2="22" />
+        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" />
+        <line x1="16.24" y1="16.24" x2="19.07" y2="19.07" />
+        <line x1="2" y1="12" x2="8" y2="12" />
+        <line x1="16" y1="12" x2="22" y2="12" />
+        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" />
+        <line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
+      </svg>
+      <span className="wind-direction-label">{direction}</span>
+    </span>
+  );
+}
+
 // Render the main weather dashboard.
 export default function App() {
   // Store the city currently typed into the search field.
@@ -272,6 +351,23 @@ export default function App() {
 
   // Load live city suggestions as the user types.
   const suggestions = useCitySuggestions(searchInput);
+
+  // On the very first visit, prompt for geolocation and fall back to the default city.
+  useEffect(() => {
+    const alreadyVisited = window.localStorage.getItem(HAS_VISITED_STORAGE_KEY);
+
+    if (alreadyVisited) return;
+
+    try {
+      window.localStorage.setItem(HAS_VISITED_STORAGE_KEY, "1");
+    } catch {
+      // Ignore storage failures; geolocation prompt can still run.
+    }
+
+    if ("geolocation" in navigator) {
+      handleUseLocation();
+    }
+  }, []);
 
   // Fetch current weather and forecast data from the weather APIs.
   const { weather, isLoading, isFetching, isError, error, refresh, updatedAt } =
@@ -381,6 +477,34 @@ export default function App() {
     addRecentCity(city);
     setShowSuggestions(false);
     setActiveSuggestionIndex(-1);
+  }
+
+  // Share the current weather via the Web Share API, with a clipboard fallback.
+  async function handleShare() {
+    if (!weather) return;
+
+    const shareText = `${weather.city}: ${weather.temperature ?? "—"}${unitLabel}, ${weather.condition}`;
+    const shareUrl = window.location.href;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Weather in ${weather.city}`,
+          text: shareText,
+          url: shareUrl,
+        });
+        return;
+      } catch {
+        // User canceled or sharing failed; fall through to clipboard fallback.
+      }
+    }
+
+    // Clipboard fallback for browsers without Web Share API.
+    try {
+      await navigator.clipboard.writeText(`${shareText} — ${shareUrl}`);
+    } catch {
+      // Clipboard access failed; nothing more to do.
+    }
   }
 
   // Ask the browser for the current position.
@@ -708,18 +832,40 @@ export default function App() {
                   <strong>{weather.longitude.toFixed(4)}°</strong>
                 </div>
 
-                <button
-                  className="refresh-button"
-                  type="button"
-                  onClick={() => void refresh()}
-                  disabled={isFetching}
-                >
-                  <RefreshCw
-                    size={16}
-                    className={isFetching ? "spinning" : ""}
-                  />
-                  {isFetching ? "Updating..." : "Refresh weather"}
-                </button>
+                <div>
+                  <span className="hero-footer-label">SUNRISE</span>
+                  <strong>{formatSunTime(weather.daily_forecast[0]?.sunrise ?? null)}</strong>
+                </div>
+
+                <div>
+                  <span className="hero-footer-label">SUNSET</span>
+                  <strong>{formatSunTime(weather.daily_forecast[0]?.sunset ?? null)}</strong>
+                </div>
+
+                <div className="hero-footer-actions">
+                  <button
+                    className="share-button"
+                    type="button"
+                    onClick={handleShare}
+                    title="Share weather"
+                    aria-label="Share weather"
+                  >
+                    <Share size={16} />
+                  </button>
+
+                  <button
+                    className="refresh-button"
+                    type="button"
+                    onClick={() => void refresh()}
+                    disabled={isFetching}
+                  >
+                    <RefreshCw
+                      size={16}
+                      className={isFetching ? "spinning" : ""}
+                    />
+                    {isFetching ? "Updating..." : "Refresh weather"}
+                  </button>
+                </div>
               </div>
             </section>
 
@@ -755,6 +901,13 @@ export default function App() {
                     {formatValue(weather.wind_speed)}
                     <small> {weather.units.wind_speed_10m ?? "km/h"}</small>
                   </strong>
+                  <span>
+                    {weather.wind_direction !== null ? (
+                      <WindDirection degrees={weather.wind_direction} />
+                    ) : (
+                      "—"
+                    )}
+                  </span>
                   <span>Current wind measurement</span>
                 </article>
 
@@ -780,6 +933,42 @@ export default function App() {
                     <small> {unitLabel}</small>
                   </strong>
                   <span>Apparent temperature</span>
+                </article>
+
+                <article className="metric-card">
+                  <div className="metric-icon pressure-icon">
+                    <Gauge size={22} />
+                  </div>
+                  <p>Pressure</p>
+                  <strong>
+                    {formatValue(weather.pressure)}
+                    <small> {weather.units.pressure ?? "hPa"}</small>
+                  </strong>
+                  <span>Atmospheric pressure</span>
+                </article>
+
+                <article className="metric-card">
+                  <div className="metric-icon dewpoint-icon">
+                    <Droplet size={22} />
+                  </div>
+                  <p>Dew point</p>
+                  <strong>
+                    {formatTemperature(weather.dewpoint, unit)}
+                    <small> {unitLabel}</small>
+                  </strong>
+                  <span>Dew point temperature</span>
+                </article>
+
+                <article className="metric-card">
+                  <div className="metric-icon visibility-icon">
+                    <Eye size={22} />
+                  </div>
+                  <p>Visibility</p>
+                  <strong>
+                    {formatValue(weather.visibility)}
+                    <small> {weather.units.visibility ?? "km"}</small>
+                  </strong>
+                  <span>Horizontal visibility</span>
                 </article>
               </div>
             </section>

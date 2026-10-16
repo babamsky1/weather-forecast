@@ -231,6 +231,8 @@ function shapeWeather(
       temperature_min: at(daily.temperature_2m_min, index),
       rain_probability: at(daily.precipitation_probability_max, index),
       precipitation_sum: at(daily.precipitation_sum, index),
+      sunrise: Array.isArray(daily.sunrise) ? (daily.sunrise[index] as string | null) ?? null : null,
+      sunset: Array.isArray(daily.sunset) ? (daily.sunset[index] as string | null) ?? null : null,
     });
   }
 
@@ -240,6 +242,10 @@ function shapeWeather(
     feels_like: num(current.apparent_temperature),
     humidity: num(current.relative_humidity_2m),
     wind_speed: num(current.wind_speed_10m),
+    wind_direction: num(current.winddirection_10m),
+    pressure: num(current.pressure_msl),
+    dewpoint: num(current.dewpoint_2m),
+    visibility: num(current.visibility),
     precipitation: num(current.precipitation),
     condition: getWeatherCondition(weatherCode),
     weather_code: weatherCode,
@@ -272,6 +278,10 @@ async function fetchWeather(
           "precipitation",
           "weather_code",
           "wind_speed_10m",
+          "winddirection_10m",
+          "pressure_msl",
+          "dewpoint_2m",
+          "visibility",
           "is_day",
         ].join(","),
         hourly: [
@@ -286,6 +296,8 @@ async function fetchWeather(
           "temperature_2m_min",
           "precipitation_sum",
           "precipitation_probability_max",
+          "sunrise",
+          "sunset",
         ].join(","),
       },
     });

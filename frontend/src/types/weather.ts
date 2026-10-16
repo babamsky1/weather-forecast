@@ -8,6 +8,8 @@ export interface WeatherUnits {
   precipitation?: string;
   weather_code?: string;
   wind_speed_10m?: string;
+  pressure?: string;
+  visibility?: string;
 }
 
 // One hourly forecast reading.
@@ -27,6 +29,8 @@ export interface DailyForecast {
   temperature_min: number | null;
   rain_probability: number | null;
   precipitation_sum: number | null;
+  sunrise: string | null;
+  sunset: string | null;
 }
 
 // Weather information for the selected city.
@@ -41,6 +45,10 @@ export interface CurrentWeather {
   feels_like: number | null;
   humidity: number | null;
   wind_speed: number | null;
+  wind_direction: number | null;
+  pressure: number | null;
+  dewpoint: number | null;
+  visibility: number | null;
   precipitation: number | null;
   condition: string;
   weather_code: number | null;

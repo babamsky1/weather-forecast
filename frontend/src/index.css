@@ -916,6 +916,46 @@ a {
   animation: spin 900ms linear infinite;
 }
 
+/* Group the share and refresh actions side by side. */
+.hero-footer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Style the share action. */
+.share-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 37px;
+  padding: 8px 10px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 600;
+  transition: background 180ms ease;
+}
+
+.share-button:hover {
+  background: rgba(255, 255, 255, 0.23);
+}
+
+/* Wind direction arrow and label. */
+.wind-direction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wind-direction-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
 /* Separate the metrics section from the hero. */
 .metrics-section {
   margin-top: 39px;
