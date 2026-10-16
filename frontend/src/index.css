@@ -1622,31 +1622,35 @@ a {
   }
 
   .daily-forecast-row {
-    grid-template-columns: minmax(70px, 1fr) minmax(90px, 1.2fr);
-    gap: 14px;
-    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .daily-day,
+  .daily-condition,
+  .daily-rain,
+  .daily-amount,
+  .daily-temperatures {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
   }
 
   .daily-condition {
-    justify-content: flex-end;
-    text-align: right;
+    justify-content: flex-start;
   }
 
   .daily-condition span {
-    font-size: 12px;
-  }
-
-  .daily-rain {
-    grid-column: 1;
-  }
-
-  .daily-amount {
-    grid-column: 2;
+    font-size: 13px;
   }
 
   .daily-temperatures {
-    grid-column: 1 / -1;
-    grid-row: 3;
+    white-space: normal;
   }
 
   .hourly-forecast-grid {

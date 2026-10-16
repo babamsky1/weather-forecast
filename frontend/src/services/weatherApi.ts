@@ -180,16 +180,16 @@ function shapeWeather(
 
   const weatherCode = num(current.weather_code);
   const currentTime = typeof current.time === "string" ? current.time : null;
-  const currentDate = currentTime?.slice(0, 10) ?? "";
 
   const hourlyTimes = timestamps(hourly.time);
   const dailyTimes = timestamps(daily.time);
 
-  // Begin the hourly view at the first slot of the current day.
-  const foundIndex = hourlyTimes.findIndex(
-    (time) => time.slice(0, 10) === currentDate,
-  );
-  const startIndex = currentDate && foundIndex !== -1 ? foundIndex : 0;
+  // Begin the hourly view at the current hour so the first card shows "now".
+  let startIndex = 0;
+  if (currentTime) {
+    const nowIndex = hourlyTimes.findIndex((time) => time >= currentTime);
+    startIndex = nowIndex !== -1 ? nowIndex : 0;
+  }
 
   // Keep the next 24 hourly readings.
   const hourlyForecast: HourlyForecast[] = [];

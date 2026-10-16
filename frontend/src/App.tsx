@@ -401,9 +401,9 @@ export default function App() {
 
         try {
           const place = await reverseGeocode(latitude, longitude);
-          label = place.name;
+          label = place.name || "Current location";
         } catch {
-          // Keep the generic location name when reverse geocoding fails.
+          label = "Current location";
         }
 
         // Show the resolved place name in the search bar.
