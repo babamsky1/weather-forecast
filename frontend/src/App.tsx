@@ -1,42 +1,23 @@
-import {
-  AlertCircle,
-  CloudFog,
-  CloudLightning,
-  CloudRain,
-  CloudSun,
-  Droplet,
-  Droplets,
-  ExternalLink,
-  LocateFixed,
-  MapPin,
-  Moon,
-  RefreshCw,
-  Satellite,
-  Search,
-  Share,
-  Snowflake,
-  Sun,
-  Thermometer,
-  TriangleAlert,
-  Wind,
-  Gauge,
-  Eye,
-} from "lucide-react";
-import {
-  useState,
-  useEffect,
-  type FormEvent,
-  type KeyboardEvent,
-} from "react";
-import { useCitySuggestions } from "./hooks/useCitySuggestions";
+import { useState, useEffect, type FormEvent } from "react";
 import { useWeather, type WeatherTarget } from "./hooks/useWeather";
-import { getWeatherCondition } from "./lib/conditions";
 import {
   reverseGeocode,
   WeatherApiException,
   type CitySuggestion,
 } from "./services/weatherApi";
 import type { CurrentWeather } from "./types/weather";
+
+// Components.
+import { Topbar } from "./components/Topbar";
+import { SearchArea } from "./components/SearchArea";
+import { ErrorBanner } from "./components/ErrorBanner";
+import { SkeletonDashboard } from "./components/SkeletonDashboard";
+import { HeroCard } from "./components/HeroCard";
+import { MetricsSection } from "./components/MetricsSection";
+import { HourlyForecast } from "./components/HourlyForecast";
+import { DailyForecast } from "./components/DailyForecast";
+import { PlaceholderGrid } from "./components/PlaceholderGrid";
+import { AppFooter } from "./components/AppFooter";
 
 // Remember the temperature unit chosen by the user.
 const UNITS_STORAGE_KEY = "skywatch:units";
@@ -47,11 +28,11 @@ const RECENT_CITIES_STORAGE_KEY = "skywatch:recent-cities";
 // Remember whether the user has visited before (for first-visit geolocation prompt).
 const HAS_VISITED_STORAGE_KEY = "skywatch:has-visited";
 
-// Define the available temperature units.
-type TemperatureUnit = "C" | "F";
-
 // Choose the hero color theme for the current weather.
 type HeroTheme = "day" | "night" | "rain" | "sunset";
+
+// Define the available temperature units.
+type TemperatureUnit = "C" | "F";
 
 // Load recent cities from localStorage, ignoring stored errors.
 function loadRecentCities(): string[] {
@@ -79,14 +60,6 @@ function loadTemperatureUnit(): TemperatureUnit {
   }
 }
 
-// Build a Zoom Earth satellite view URL centered on the selected location.
-function buildZoomEarthUrl(latitude: number, longitude: number): string {
-  const lat = latitude.toFixed(4);
-  const lon = longitude.toFixed(4);
-
-  return `https://zoom.earth/maps/satellite/#view=${lat},${lon},8z/place=${lat},${lon}`;
-}
-
 // Format a measurement safely without treating missing values as zero.
 function formatValue(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) {
@@ -111,38 +84,6 @@ function formatTemperature(
   }
 
   return String(value);
-}
-
-// Build the secondary line for a city suggestion.
-function buildSuggestionRegion(suggestion: CitySuggestion): string {
-  return [suggestion.admin1, suggestion.country].filter(Boolean).join(", ");
-}
-
-// Convert wind degrees to a 16-point compass direction.
-function compassDirection(degrees: number | null): string {
-  if (degrees === null || !Number.isFinite(degrees)) return "—";
-
-  const directions = [
-    "N",
-    "NNE",
-    "NE",
-    "ENE",
-    "E",
-    "ESE",
-    "SE",
-    "SSE",
-    "S",
-    "SSW",
-    "SW",
-    "WSW",
-    "W",
-    "WNW",
-    "NW",
-    "NNW",
-  ];
-
-  const index = Math.round((((degrees % 360) + 360) % 360) / 22.5) % 16;
-  return directions[index];
 }
 
 // Format a sunrise/sunset ISO time as a short local time.
@@ -184,142 +125,6 @@ function getHeroTheme(weather: CurrentWeather | undefined): HeroTheme {
   return "day";
 }
 
-// Select a weather icon based on the weather description.
-function WeatherIcon({ condition }: { condition: string }) {
-  const normalizedCondition = condition.toLowerCase();
-
-  if (normalizedCondition.includes("thunder")) {
-    return <CloudLightning size={76} strokeWidth={1.4} />;
-  }
-
-  if (
-    normalizedCondition.includes("rain") ||
-    normalizedCondition.includes("drizzle") ||
-    normalizedCondition.includes("shower")
-  ) {
-    return <CloudRain size={76} strokeWidth={1.4} />;
-  }
-
-  if (normalizedCondition.includes("snow")) {
-    return <Snowflake size={76} strokeWidth={1.4} />;
-  }
-
-  if (
-    normalizedCondition.includes("fog") ||
-    normalizedCondition.includes("rime")
-  ) {
-    return <CloudFog size={76} strokeWidth={1.4} />;
-  }
-
-  if (
-    normalizedCondition.includes("cloud") ||
-    normalizedCondition.includes("overcast") ||
-    normalizedCondition.includes("mainly clear")
-  ) {
-    return <CloudSun size={76} strokeWidth={1.4} />;
-  }
-
-  // "Clear sky" is the only genuinely sunny condition.
-  return <Sun size={76} strokeWidth={1.4} />;
-}
-
-// Show a smaller icon for a forecast item.
-function ForecastIcon({ code }: { code: number | null }) {
-  const condition = getWeatherCondition(code);
-  const normalizedCondition = condition.toLowerCase();
-
-  if (normalizedCondition.includes("thunder")) {
-    return <CloudLightning size={25} />;
-  }
-
-  if (
-    normalizedCondition.includes("rain") ||
-    normalizedCondition.includes("drizzle") ||
-    normalizedCondition.includes("shower")
-  ) {
-    return <CloudRain size={25} />;
-  }
-
-  if (normalizedCondition.includes("snow")) {
-    return <Snowflake size={25} />;
-  }
-
-  if (
-    normalizedCondition.includes("fog") ||
-    normalizedCondition.includes("rime")
-  ) {
-    return <CloudFog size={25} />;
-  }
-
-  if (
-    normalizedCondition.includes("cloud") ||
-    normalizedCondition.includes("overcast")
-  ) {
-    return <CloudSun size={25} />;
-  }
-
-  return <Sun size={25} />;
-}
-
-// Format a forecast timestamp as a local time.
-function formatForecastTime(time: string): string {
-  const date = new Date(time);
-
-  if (Number.isNaN(date.getTime())) {
-    return time;
-  }
-
-  return date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-// Format a forecast date as a weekday.
-function formatForecastDay(dateString: string, index: number): string {
-  if (index === 0) return "Today";
-
-  const date = new Date(`${dateString}T12:00:00`);
-
-  if (Number.isNaN(date.getTime())) {
-    return dateString;
-  }
-
-  return date.toLocaleDateString(undefined, { weekday: "short" });
-}
-
-// Show a small rotating arrow with the compass direction for wind.
-function WindDirection({ degrees }: { degrees: number | null }) {
-  const direction = compassDirection(degrees);
-  const hasValue = degrees !== null && Number.isFinite(degrees);
-
-  return (
-    <span className="wind-direction" title={hasValue ? `${direction} (${Math.round(degrees)}°)` : "No data"}>
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ transform: hasValue ? `rotate(${degrees}deg)` : "none" }}
-      >
-        <line x1="12" y1="2" x2="12" y2="8" />
-        <line x1="12" y1="16" x2="12" y2="22" />
-        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" />
-        <line x1="16.24" y1="16.24" x2="19.07" y2="19.07" />
-        <line x1="2" y1="12" x2="8" y2="12" />
-        <line x1="16" y1="12" x2="22" y2="12" />
-        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" />
-        <line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
-      </svg>
-      <span className="wind-direction-label">{direction}</span>
-    </span>
-  );
-}
-
 // Render the main weather dashboard.
 export default function App() {
   // Store the city currently typed into the search field.
@@ -337,20 +142,11 @@ export default function App() {
   // Store the selected temperature unit.
   const [unit, setUnit] = useState<TemperatureUnit>(loadTemperatureUnit);
 
-  // Track the highlighted suggestion for keyboard navigation.
-  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
-
-  // Track whether the suggestion list should be visible.
-  const [showSuggestions, setShowSuggestions] = useState(false);
-
   // Track whether a geolocation request is in progress.
   const [isLocating, setIsLocating] = useState(false);
 
   // Store a message when geolocation fails.
   const [locationError, setLocationError] = useState<string | null>(null);
-
-  // Load live city suggestions as the user types.
-  const suggestions = useCitySuggestions(searchInput);
 
   // On the very first visit, prompt for geolocation and fall back to the default city.
   useEffect(() => {
@@ -422,23 +218,11 @@ export default function App() {
       label: suggestion.name,
     });
     addRecentCity(suggestion.name);
-    setShowSuggestions(false);
-    setActiveSuggestionIndex(-1);
   }
 
   // Submit a city search.
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    // Select the highlighted suggestion instead of submitting.
-    if (
-      showSuggestions &&
-      activeSuggestionIndex >= 0 &&
-      suggestions[activeSuggestionIndex]
-    ) {
-      handleSelectSuggestion(suggestions[activeSuggestionIndex]);
-      return;
-    }
 
     const city = searchInput.trim();
 
@@ -446,28 +230,6 @@ export default function App() {
 
     setTarget({ kind: "city", city });
     addRecentCity(city);
-    setShowSuggestions(false);
-    setActiveSuggestionIndex(-1);
-  }
-
-  // Move through the suggestion list with the arrow keys.
-  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (!showSuggestions || suggestions.length === 0) return;
-
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setActiveSuggestionIndex(
-        (current) => (current + 1) % suggestions.length,
-      );
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActiveSuggestionIndex((current) =>
-        current <= 0 ? suggestions.length - 1 : current - 1,
-      );
-    } else if (event.key === "Escape") {
-      setShowSuggestions(false);
-      setActiveSuggestionIndex(-1);
-    }
   }
 
   // Select a city from the recent list.
@@ -475,14 +237,13 @@ export default function App() {
     setSearchInput(city);
     setTarget({ kind: "city", city });
     addRecentCity(city);
-    setShowSuggestions(false);
-    setActiveSuggestionIndex(-1);
   }
 
   // Share the current weather via the Web Share API, with a clipboard fallback.
   async function handleShare() {
     if (!weather) return;
 
+    const unitLabel = `°${unit}`;
     const shareText = `${weather.city}: ${weather.temperature ?? "—"}${unitLabel}, ${weather.condition}`;
     const shareUrl = window.location.href;
 
@@ -516,7 +277,6 @@ export default function App() {
 
     setIsLocating(true);
     setLocationError(null);
-    setShowSuggestions(false);
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -588,47 +348,7 @@ export default function App() {
       </div>
 
       <div className="dashboard">
-        <header className="topbar">
-          <a className="brand" href="/" aria-label="Weather dashboard home">
-            <span className="brand-icon">
-              <CloudSun size={25} />
-            </span>
-            <span>
-              <strong>SkyWatch</strong>
-              <small>Weather Monitoring</small>
-            </span>
-          </a>
-
-          <div className="topbar-actions">
-            <div className="header-status">
-              <span className="status-dot" />
-              Current weather
-            </div>
-
-            <div
-              className="unit-toggle"
-              role="group"
-              aria-label="Temperature unit"
-            >
-              <button
-                type="button"
-                className={unit === "C" ? "is-active" : ""}
-                aria-pressed={unit === "C"}
-                onClick={() => changeUnit("C")}
-              >
-                °C
-              </button>
-              <button
-                type="button"
-                className={unit === "F" ? "is-active" : ""}
-                aria-pressed={unit === "F"}
-                onClick={() => changeUnit("F")}
-              >
-                °F
-              </button>
-            </div>
-          </div>
-        </header>
+        <Topbar unit={unit} onChangeUnit={changeUnit} />
 
         <section className="welcome-section">
           <div>
@@ -639,339 +359,43 @@ export default function App() {
             </p>
           </div>
 
-          <div className="search-area">
-            <form className="search-form" onSubmit={handleSearch}>
-              <Search size={19} aria-hidden="true" />
-
-              <input
-                type="search"
-                value={searchInput}
-                onChange={(event) => {
-                  setSearchInput(event.target.value);
-                  setShowSuggestions(true);
-                  setActiveSuggestionIndex(-1);
-                }}
-                onFocus={() => setShowSuggestions(true)}
-                onBlur={() =>
-                  window.setTimeout(() => setShowSuggestions(false), 150)
-                }
-                onKeyDown={handleSearchKeyDown}
-                placeholder="Search a city..."
-                aria-label="Search city"
-                role="combobox"
-                aria-expanded={showSuggestions && suggestions.length > 0}
-                aria-controls="city-suggestions"
-                aria-autocomplete="list"
-                autoComplete="off"
-              />
-
-              <button
-                className="location-button"
-                type="button"
-                onClick={handleUseLocation}
-                disabled={isLocating}
-                title="Use my location"
-                aria-label="Use my location"
-              >
-                <LocateFixed
-                  size={18}
-                  className={isLocating ? "spinning" : ""}
-                />
-              </button>
-
-              <button
-                className="search-submit"
-                type="submit"
-                disabled={!searchInput.trim()}
-              >
-                Search
-              </button>
-            </form>
-
-            {showSuggestions && suggestions.length > 0 && (
-              <ul className="suggestions" id="city-suggestions" role="listbox">
-                {suggestions.map((suggestion, index) => (
-                  <li
-                    key={`${suggestion.name}-${suggestion.latitude}-${suggestion.longitude}`}
-                    role="option"
-                    aria-selected={index === activeSuggestionIndex}
-                  >
-                    <button
-                      type="button"
-                      className={`suggestion-option ${
-                        index === activeSuggestionIndex ? "is-active" : ""
-                      }`}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => handleSelectSuggestion(suggestion)}
-                    >
-                      <MapPin size={15} />
-                      <span className="suggestion-name">
-                        {suggestion.name}
-                      </span>
-                      <span className="suggestion-region">
-                        {buildSuggestionRegion(suggestion)}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {recentCities.length > 0 && (
-              <div className="recent-cities">
-                <span className="recent-label">Recent</span>
-                {recentCities.map((city) => (
-                  <button
-                    key={city}
-                    type="button"
-                    className="recent-chip"
-                    onClick={() => handleRecentCity(city)}
-                  >
-                    {city}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {locationError && (
-              <p className="search-message" role="alert">
-                {locationError}
-              </p>
-            )}
-          </div>
+          <SearchArea
+            searchInput={searchInput}
+            onSearchInputChange={setSearchInput}
+            onSearchSubmit={handleSearch}
+            onSelectSuggestion={handleSelectSuggestion}
+            onRecentCity={handleRecentCity}
+            onUseLocation={handleUseLocation}
+            isLocating={isLocating}
+            locationError={locationError}
+            recentCities={recentCities}
+          />
         </section>
 
-        {isError && (
-          <div className="error-banner" role="alert">
-            <AlertCircle size={20} />
-            <div>
-              <strong>Unable to update weather</strong>
-              <p>{errorMessage}</p>
-            </div>
-          </div>
-        )}
+        {isError && <ErrorBanner errorMessage={errorMessage} />}
 
         {isLoading && !weather ? (
-          <section
-            className="skeleton-dashboard"
-            aria-busy="true"
-            aria-live="polite"
-          >
-            <span className="sr-only">Getting the latest weather...</span>
-
-            <div className="skeleton skeleton-hero" />
-
-            <div className="skeleton-metrics">
-              {[0, 1, 2, 3].map((index) => (
-                <div className="skeleton skeleton-metric" key={index} />
-              ))}
-            </div>
-
-            <div className="skeleton-hours">
-              {[0, 1, 2, 3, 4, 5].map((index) => (
-                <div className="skeleton skeleton-hour" key={index} />
-              ))}
-            </div>
-
-            <div className="skeleton-lines">
-              {[0, 1, 2].map((index) => (
-                <div className="skeleton skeleton-line" key={index} />
-              ))}
-            </div>
-          </section>
+          <SkeletonDashboard />
         ) : weather ? (
           <>
-            <section className={`hero-card hero-${heroTheme}`}>
-              <div className="hero-content">
-                <div className="location-label">
-                  <MapPin size={17} />
-                  <span>
-                    {weather.city}
-                    {weather.country ? `, ${weather.country}` : ""}
-                  </span>
-                </div>
+            <HeroCard
+              weather={weather}
+              unitLabel={unitLabel}
+              observationTime={observationTime}
+              heroTheme={heroTheme}
+              onShare={handleShare}
+              onRefresh={() => void refresh()}
+              isFetching={isFetching}
+              formatSunTime={formatSunTime}
+            />
 
-                <p className="observation-time">
-                  Last observation: {observationTime}
-                </p>
-
-                <div className="temperature-display">
-                  <span className="temperature-value">
-                    {formatTemperature(weather.temperature, unit)}
-                  </span>
-                  <span className="temperature-unit">{unitLabel}</span>
-                </div>
-
-                <h2 className="condition-label">{weather.condition}</h2>
-
-                <p className="feels-like">
-                  Feels like {formatTemperature(weather.feels_like, unit)}
-                  {weather.feels_like !== null &&
-                  weather.feels_like !== undefined
-                    ? unitLabel
-                    : ""}
-                </p>
-              </div>
-
-              <div className="hero-illustration" aria-hidden="true">
-                <div className="illustration-glow" />
-                <WeatherIcon condition={weather.condition} />
-                {weather.is_day === 0 && (
-                  <Moon className="night-moon" size={28} />
-                )}
-              </div>
-
-              <div className="hero-footer">
-                <div>
-                  <span className="hero-footer-label">LATITUDE</span>
-                  <strong>{weather.latitude.toFixed(4)}°</strong>
-                </div>
-
-                <div>
-                  <span className="hero-footer-label">LONGITUDE</span>
-                  <strong>{weather.longitude.toFixed(4)}°</strong>
-                </div>
-
-                <div>
-                  <span className="hero-footer-label">SUNRISE</span>
-                  <strong>{formatSunTime(weather.daily_forecast[0]?.sunrise ?? null)}</strong>
-                </div>
-
-                <div>
-                  <span className="hero-footer-label">SUNSET</span>
-                  <strong>{formatSunTime(weather.daily_forecast[0]?.sunset ?? null)}</strong>
-                </div>
-
-                <div className="hero-footer-actions">
-                  <button
-                    className="share-button"
-                    type="button"
-                    onClick={handleShare}
-                    title="Share weather"
-                    aria-label="Share weather"
-                  >
-                    <Share size={16} />
-                  </button>
-
-                  <button
-                    className="refresh-button"
-                    type="button"
-                    onClick={() => void refresh()}
-                    disabled={isFetching}
-                  >
-                    <RefreshCw
-                      size={16}
-                      className={isFetching ? "spinning" : ""}
-                    />
-                    {isFetching ? "Updating..." : "Refresh weather"}
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            <section className="metrics-section">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">CURRENT CONDITIONS</p>
-                  <h2>Weather details</h2>
-                </div>
-
-                <span className="live-indicator">
-                  <span className="status-dot" />
-                  Latest available data
-                </span>
-              </div>
-
-              <div className="metrics-grid">
-                <article className="metric-card">
-                  <div className="metric-icon humidity-icon">
-                    <Droplets size={22} />
-                  </div>
-                  <p>Humidity</p>
-                  <strong>{formatValue(weather.humidity)}%</strong>
-                  <span>Relative humidity</span>
-                </article>
-
-                <article className="metric-card">
-                  <div className="metric-icon wind-icon">
-                    <Wind size={22} />
-                  </div>
-                  <p>Wind speed</p>
-                  <strong>
-                    {formatValue(weather.wind_speed)}
-                    <small> {weather.units.wind_speed_10m ?? "km/h"}</small>
-                  </strong>
-                  <span>
-                    {weather.wind_direction !== null ? (
-                      <WindDirection degrees={weather.wind_direction} />
-                    ) : (
-                      "—"
-                    )}
-                  </span>
-                  <span>Current wind measurement</span>
-                </article>
-
-                <article className="metric-card">
-                  <div className="metric-icon rain-icon">
-                    <CloudRain size={22} />
-                  </div>
-                  <p>Precipitation</p>
-                  <strong>
-                    {formatValue(weather.precipitation)}
-                    <small> {weather.units.precipitation ?? "mm"}</small>
-                  </strong>
-                  <span>Current precipitation</span>
-                </article>
-
-                <article className="metric-card">
-                  <div className="metric-icon temperature-icon">
-                    <Thermometer size={22} />
-                  </div>
-                  <p>Feels like</p>
-                  <strong>
-                    {formatTemperature(weather.feels_like, unit)}
-                    <small> {unitLabel}</small>
-                  </strong>
-                  <span>Apparent temperature</span>
-                </article>
-
-                <article className="metric-card">
-                  <div className="metric-icon pressure-icon">
-                    <Gauge size={22} />
-                  </div>
-                  <p>Pressure</p>
-                  <strong>
-                    {formatValue(weather.pressure)}
-                    <small> {weather.units.pressure ?? "hPa"}</small>
-                  </strong>
-                  <span>Atmospheric pressure</span>
-                </article>
-
-                <article className="metric-card">
-                  <div className="metric-icon dewpoint-icon">
-                    <Droplet size={22} />
-                  </div>
-                  <p>Dew point</p>
-                  <strong>
-                    {formatTemperature(weather.dewpoint, unit)}
-                    <small> {unitLabel}</small>
-                  </strong>
-                  <span>Dew point temperature</span>
-                </article>
-
-                <article className="metric-card">
-                  <div className="metric-icon visibility-icon">
-                    <Eye size={22} />
-                  </div>
-                  <p>Visibility</p>
-                  <strong>
-                    {formatValue(weather.visibility)}
-                    <small> {weather.units.visibility ?? "km"}</small>
-                  </strong>
-                  <span>Horizontal visibility</span>
-                </article>
-              </div>
-            </section>
+            <MetricsSection
+              weather={weather}
+              unit={unit}
+              unitLabel={unitLabel}
+              formatTemperature={formatTemperature}
+              formatValue={formatValue}
+            />
 
             {/* Hourly forecast and rain probability. */}
             <section className="forecast-section">
@@ -985,37 +409,20 @@ export default function App() {
                 </span>
               </div>
 
-              {hourlyForecast.length > 0 ? (
-                <div className="hourly-forecast-grid">
-                  {hourlyForecast.map((hour, index) => (
-                    <article
-                      className="hourly-card"
-                      key={`${hour.time}-${index}`}
-                    >
-                      <p className="forecast-time">
-                        {formatForecastTime(hour.time)}
-                      </p>
-
-                      <ForecastIcon code={hour.weather_code} />
-
-                      <strong className="hourly-temperature">
-                        {formatTemperature(hour.temperature, unit)}°
-                      </strong>
-
-                      <div className="rain-probability">
-                        <Droplets size={15} />
-                        <span>{formatValue(hour.rain_probability)}%</span>
-                      </div>
-
-                      <span className="forecast-caption">Chance of rain</span>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <div className="forecast-empty">
-                  Hourly forecast data is not available.
-                </div>
-              )}
+              <HourlyForecast
+                hourlyForecast={hourlyForecast}
+                unit={unit}
+                formatTemperature={formatTemperature}
+                formatForecastTime={(time: string) => {
+                  const date = new Date(time);
+                  if (Number.isNaN(date.getTime())) return time;
+                  return date.toLocaleTimeString(undefined, {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  });
+                }}
+                formatValue={formatValue}
+              />
             </section>
 
             {/* Seven-day forecast with daily rain probability. */}
@@ -1030,133 +437,30 @@ export default function App() {
                 </span>
               </div>
 
-              {dailyForecast.length > 0 ? (
-                <div className="daily-forecast-list">
-                  <div className="daily-forecast-head" aria-hidden="true">
-                    <span>Day</span>
-                    <span>Condition</span>
-                    <span>Chance of rain</span>
-                    <span>Rain (mm)</span>
-                    <span className="daily-head-temperatures">
-                      High / Low
-                    </span>
-                  </div>
-
-                  {dailyForecast.map((day, index) => (
-                    <article className="daily-forecast-row" key={day.date}>
-                      <div className="daily-day">
-                        <strong>{formatForecastDay(day.date, index)}</strong>
-                        <span>{day.date}</span>
-                      </div>
-
-                      <div className="daily-condition">
-                        <ForecastIcon code={day.weather_code} />
-                        <span>{getWeatherCondition(day.weather_code)}</span>
-                      </div>
-
-                      <div className="daily-rain">
-                        <Droplets size={17} />
-                        <div>
-                          <strong>{formatValue(day.rain_probability)}%</strong>
-                          <span>Chance of rain</span>
-                        </div>
-                      </div>
-
-                      <div className="daily-amount">
-                        <CloudRain size={17} />
-                        <strong>
-                          {formatValue(day.precipitation_sum)} mm
-                        </strong>
-                      </div>
-
-                      <div className="daily-temperatures">
-                        <strong>
-                          {formatTemperature(day.temperature_max, unit)}°
-                        </strong>
-                        <span>
-                          {formatTemperature(day.temperature_min, unit)}°
-                        </span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <div className="forecast-empty">
-                  Daily forecast data is not available.
-                </div>
-              )}
+              <DailyForecast
+                dailyForecast={dailyForecast}
+                unit={unit}
+                formatTemperature={formatTemperature}
+                formatForecastDay={(dateString: string, index: number) => {
+                  if (index === 0) return "Today";
+                  const date = new Date(`${dateString}T12:00:00`);
+                  if (Number.isNaN(date.getTime())) return dateString;
+                  return date.toLocaleDateString(undefined, {
+                    weekday: "short",
+                  });
+                }}
+                formatValue={formatValue}
+              />
             </section>
 
-            <section className="placeholder-grid">
-              <article className="placeholder-card">
-                <div className="placeholder-heading">
-                  <Droplet size={23} />
-                  <h2>Flood monitoring</h2>
-                </div>
-                <p>
-                  View flood hazard maps for the Philippines with Project NOAH.
-                </p>
-                <a
-                  className="card-link"
-                  href="https://noah.up.edu.ph/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Droplet size={18} />
-                  Open Project NOAH
-                  <ExternalLink size={14} />
-                </a>
-              </article>
-
-              <article className="placeholder-card">
-                <div className="placeholder-heading">
-                  <TriangleAlert size={23} />
-                  <h2>Rain &amp; wind signals</h2>
-                </div>
-                <p>
-                  Monitor PAGASA rainfall and wind signal warnings across the
-                  Philippines.
-                </p>
-                <a
-                  className="card-link"
-                  href="https://www.pagasa.dost.gov.ph/tropical-cyclone/severe-weather-bulletin"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <TriangleAlert size={18} />
-                  Open PAGASA bulletin
-                  <ExternalLink size={14} />
-                </a>
-              </article>
-
-              <article className="placeholder-card">
-                <div className="placeholder-heading">
-                  <MapPin size={23} />
-                  <h2>Weather location</h2>
-                </div>
-                <p>
-                  Open live satellite imagery of the selected location on Zoom
-                  Earth.
-                </p>
-                <a
-                  className="card-link"
-                  href={buildZoomEarthUrl(weather.latitude, weather.longitude)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Satellite size={18} />
-                  View on Zoom Earth
-                  <ExternalLink size={14} />
-                </a>
-              </article>
-            </section>
+            <PlaceholderGrid
+              latitude={weather.latitude}
+              longitude={weather.longitude}
+            />
           </>
         ) : null}
 
-        <footer className="app-footer">
-          <span>SkyWatch Weather Monitoring</span>
-          <span>Weather data provided by Open-Meteo</span>
-        </footer>
+        <AppFooter />
       </div>
     </main>
   );
